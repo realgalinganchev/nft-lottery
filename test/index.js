@@ -13,7 +13,7 @@ describe('Ticket Smart Contract Tests', function () {
 
   it('NFT is minted successfully', async function () {
     ;[account1] = await ethers.getSigners()
-
+    console.log(account1.getAddress())
     expect(await ticket.balanceOf(account1.address)).to.equal(0)
     const options = {
       value: ethers.utils.parseEther('1'),
@@ -27,6 +27,8 @@ describe('Ticket Smart Contract Tests', function () {
 
   it('tokenURI is set sucessfully', async function () {
     ;[account1, account2] = await ethers.getSigners()
+    console.log(account1.getAddress())
+    console.log(account2.getAddress())
     const options = {
       value: ethers.utils.parseEther('1'),
     }

@@ -18,8 +18,8 @@ module.exports = {
           order: 'fifo',
         },
       },
-      gas: 8000000,
-      gasPrice: 30000000000,
+      gas: 80000000,
+      gasPrice: 300000000000,
     },
 
     // ganache: {

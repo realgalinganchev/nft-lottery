@@ -12,7 +12,7 @@ import "hardhat/console.sol";
 
 contract Ticket is ERC721, ERC721Enumerable, Ownable {
     using SafeMath for uint256;
-    uint256 public tokenCounter;
+    uint256 public tokenIdCounter;
     uint256 public currentLotteryId = 0;
     uint256 public numLotteries = 0;
     mapping(uint256 => string) private _tokenURIs;
@@ -24,25 +24,18 @@ contract Ticket is ERC721, ERC721Enumerable, Ownable {
     mapping(uint256 => LotteryStruct) public lotteries;
 
     constructor(string memory name, string memory symbol) ERC721(name, symbol) {
-        tokenCounter = 0;
+        tokenIdCounter = 0;
     }
 
-    modifier isLotteryStartedAndRunning() {
+    modifier isLotteryInitAndPlayable() {
         LotteryStruct memory currentLottery = lotteries[currentLotteryId];
-        console.log("currentLottery.startBlock : ", currentLottery.startBlock);
-        console.log("currentLottery.endBlock : ", currentLottery.endBlock);
-        console.log("block.number : ", block.number);
         require(
             currentLottery.startBlock != 0 && currentLottery.endBlock != 0,
-            "Lottery has not been started yet"
+            "Lottery not started"
         );
         require(
             currentLottery.startBlock <= block.number,
-            "Lottery starts at a later block"
-        );
-        require(
-            currentLottery.endBlock >= block.number,
-            "Lottery has already finished"
+            "Lottery starts later"
         );
         _;
     }
@@ -50,30 +43,21 @@ contract Ticket is ERC721, ERC721Enumerable, Ownable {
     function mint(string memory _tokenURI)
         public
         payable
-        isLotteryStartedAndRunning
+        isLotteryInitAndPlayable
     {
         require(msg.value == 1 ether, "price is 1 eth");
-        (bool sent, bytes memory data) = payable(address(this)).call{
-            value: msg.value
-        }("");
-        require(sent, "Failed to send Ether");
-        _safeMint(msg.sender, tokenCounter);
-        _setTokenURI(tokenCounter, _tokenURI);
-        console.log("tokenCounter : ", tokenCounter);
-        console.log("_tokenURI : ", _tokenURI);
-        console.log(
-            "tokenByIndex(tokenCounter) : ",
-            tokenByIndex(tokenCounter)
-        );
-        tokenCounter++;
+        sendEther(payable(address(this)), msg.value);
+        _safeMint(msg.sender, tokenIdCounter);
+        _setTokenURI(tokenIdCounter, _tokenURI);
+        console.log("tokenByIndex() :  ", tokenByIndex(tokenIdCounter));
+        tokenIdCounter++;
 
-        if (lotteries[currentLotteryId].endBlock == block.number) {
-            console.log(
-                "lotteries[currentLotteryId].endBlock : ",
-                lotteries[currentLotteryId].endBlock
-            );
-            console.log("block.number : ", block.number);
-            endLottery();
+        if (
+            lotteries[currentLotteryId].endBlock == block.number ||
+            SafeMath.sub(lotteries[currentLotteryId].endBlock, 1) ==
+            block.number
+        ) {
+            payWinner();
         }
     }
 
@@ -86,19 +70,35 @@ contract Ticket is ERC721, ERC721Enumerable, Ownable {
             startBlock: startBlock,
             endBlock: endBlock
         });
-        numLotteries = SafeMath.add(numLotteries, 1);
     }
 
-    function endLottery() private returns (uint256) {
-        uint256 winnerId = getRandomInt(totalSupply());
-        uint256 token = tokenOfOwnerByIndex(msg.sender, winnerId);
-        console.log("token : ", token);
-        currentLotteryId = SafeMath.add(currentLotteryId, 1);
-        return token;
+    function payWinner() private returns (address) {
+        uint256 winnerTokenIndex = getRandomInt(totalSupply());
+        address winnerAddr = ownerOf(winnerTokenIndex);
+        console.log("winnerAddr : ", winnerAddr);
+        if (
+            SafeMath.sub(lotteries[currentLotteryId].endBlock, 1) ==
+            block.number
+        ) {
+            sendEther(
+                payable(winnerAddr),
+                SafeMath.div(address(this).balance, 2)
+            );
+        } else {
+            sendEther(payable(winnerAddr), address(this).balance);
+            currentLotteryId = SafeMath.add(currentLotteryId, 1);
+            console.log("totalSupply before burning: ", totalSupply());
+            uint256 totalSupply = totalSupply();
+            uint256 i = 0;
+            for (i; i < totalSupply; i++) {
+                _burn(i);
+            }
+        }
+
+        return winnerAddr;
     }
 
-    //change to internal
-    function getRandomInt(uint256 _endingValue) public view returns (uint256) {
+    function getRandomInt(uint256 _endingValue) private view returns (uint256) {
         uint256 randomInt = SafeMath.mod(
             uint256(
                 keccak256(abi.encodePacked(block.timestamp, totalSupply()))
@@ -107,6 +107,11 @@ contract Ticket is ERC721, ERC721Enumerable, Ownable {
         );
 
         return randomInt;
+    }
+
+    function sendEther(address payable _to, uint256 _amount) public payable {
+        (bool sent, bytes memory data) = _to.call{value: _amount}("");
+        require(sent, "Failed to send Ether");
     }
 
     function _beforeTokenTransfer(
@@ -157,5 +162,6 @@ contract Ticket is ERC721, ERC721Enumerable, Ownable {
 
     receive() external payable {
         console.log("----- receive:", msg.value);
+        console.log("totalSupply : ", totalSupply());
     }
 }
