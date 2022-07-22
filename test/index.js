@@ -1,45 +1,49 @@
-const { expect } = require('chai')
-const { ethers } = require('hardhat')
+const { expect, assert } = require('chai')
+const { ethers, upgrades } = require('hardhat')
 
-describe('Ticket Smart Contract Tests', function () {
-  let ticket
+describe('Contract Version 2 test', function () {
+  let oldContract, upgradedContract, owner, addr1
 
-  this.beforeEach(async function () {
-    // This is executed before each test
-    // Deploying the smart contract
-    const Ticket = await ethers.getContractFactory('Ticket')
-    ticket = await Ticket.deploy('Ticket', 'TKT')
+  beforeEach(async function () {
+    ;[owner, addr1] = await ethers.getSigners(2)
+    const Lottery1 = await ethers.getContractFactory('Lottery1')
+    const Lottery2 = await ethers.getContractFactory('Lottery2')
+
+    oldContract = await upgrades.deployProxy(Lottery1, [], {
+      initializer: 'initialize',
+      kind: 'uups',
+    })
+    await oldContract.deployed()
+
+    upgradedContract = await upgrades.upgradeProxy(oldContract, Lottery2, {
+      call: { fn: 'reInitialize' },
+    })
   })
 
-  it('NFT is minted successfully', async function () {
-    ;[account1] = await ethers.getSigners()
-    console.log(account1.getAddress())
-    expect(await ticket.balanceOf(account1.address)).to.equal(0)
-    const options = {
-      value: ethers.utils.parseEther('1'),
+  it('Old contract cannnot mint NFTs', async function () {
+    try {
+      oldContract.safeMint(owner.address, 'Test NFT')
+    } catch (error) {
+      assert(error.message === 'oldContract.safeMint is not a function')
     }
-    const tokenURI =
-      'https://opensea-creatures-api.herokuapp.com/api/creature/1'
-    const tx = await ticket.connect(account1).mint(tokenURI, options)
-
-    expect(await ticket.balanceOf(account1.address)).to.equal(1)
+  })
+  it('New Contract Should return the old & new greeting and token name after deployment', async function () {
+    expect(await upgradedContract.name()).to.equal('Ticket')
   })
 
-  it('tokenURI is set sucessfully', async function () {
-    ;[account1, account2] = await ethers.getSigners()
-    console.log(account1.getAddress())
-    console.log(account2.getAddress())
-    const options = {
-      value: ethers.utils.parseEther('1'),
-    }
-    const tokenURI_1 =
-      'https://opensea-creatures-api.herokuapp.com/api/creature/1'
-    const tokenURI_2 =
-      'https://opensea-creatures-api.herokuapp.com/api/creature/2'
-
-    const tx1 = await ticket.connect(account1).mint(tokenURI_1, options)
-    const tx2 = await ticket.connect(account2).mint(tokenURI_2, options)
-    expect(await ticket.tokenURI(0)).to.equal(tokenURI_1)
-    expect(await ticket.tokenURI(1)).to.equal(tokenURI_2)
+  it('Only Owner can start the lottery', async function () {
+    await expect(
+      upgradedContract.connect(addr1).initLottery(1, 2),
+    ).to.be.revertedWith('Ownable: caller is not the owner')
   })
+
+  // it('Only Owner can start the lottery', async function () {
+  //   await upgradedContract.connect(owner).initLottery(0, 1)
+  //   await expect(upgradedContract.safeMint('Test NFT'))
+  //     .to.emit(upgradedContract, 'Transfer')
+  //     .withArgs(ethers.constants.AddressZero, owner.address, 0)
+
+  //   expect(await upgradedContract.balanceOf(owner.address)).to.equal(1)
+  //   expect(await upgradedContract.ownerOf(0)).to.equal(owner.address)
+  // })
 })

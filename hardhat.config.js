@@ -1,9 +1,11 @@
 require('@nomicfoundation/hardhat-toolbox')
+require('@openzeppelin/hardhat-upgrades')
+require("hardhat-gas-reporter")
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
   solidity: {
-    version: '0.8.1',
+    version: '0.8.12',
     settings: {
       optimizer: {
         enabled: true,
@@ -18,8 +20,8 @@ module.exports = {
           order: 'fifo',
         },
       },
-      gas: 80000000,
-      gasPrice: 300000000000,
+      // gas: 800000000,
+      // gasPrice: 300000000000000,
     },
 
     // ganache: {

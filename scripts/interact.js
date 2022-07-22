@@ -1,6 +1,6 @@
 require('@nomiclabs/hardhat-ethers')
 const { ethers } = require('hardhat')
-const contract = require('../artifacts/contracts/Ticket.sol/Ticket.json')
+const contract = require('../artifacts/contracts/Lottery2.sol/Lottery2.json')
 const contractInterface = contract.abi
 
 // https://hardhat.org/plugins/nomiclabs-hardhat-ethers.html#provider-object
@@ -29,7 +29,7 @@ walletOwner.provider = provider
 const signerOwner = walletOwner.connect(provider)
 
 const lotteryContract = new ethers.Contract(
-  '0x5FbDB2315678afecb367f032d93F642f64180aa3',
+  '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512',
   contractInterface,
   signerOwner,
 )
@@ -62,27 +62,22 @@ async function main() {
   }
 
   // lotteryContract
-  //   .initLottery(3, 8)
+  //   .initLottery(6, 9)
   //   .then((tx) => tx.wait(1))
-  //   .then((receipt) =>
-  //     console.log(`Your transaction is confirmed, its receipt is:
-  //   ${receipt.status}
-  //   ${receipt.contractAddress}`),
-  //   )
-  //   .catch((e) => console.log('something went wrong', e))
 
-  // lotteryContract
+  lotteryContract
+    .connect(player2)
+    .safeMint(tokenURI5, options)
+    .then((tx) => tx.wait(1))
+
+  // await lotteryContract
   //   .connect(player1)
-  //   .mint(tokenURI5, options)
-  //   .then((tx) => tx.wait(1))
-  //   .then((receipt) =>
-  //     console.log(`Your transaction is confirmed, its receipt is:
-  //   ${receipt.status}
-  //   ${receipt.contractAddress}`),
-  //   )
-  //   .catch((e) => console.log('something went wrong', e))
+  //   .getRandomInt(100)
+  //   .then((data) => {
+  //     console.log('rando :>> ', data)
+  //   })
 
-  lotteryContract.fallback(options0).then((tx) => tx.wait(1))
+  // lotteryContract.fallback(options0).then((tx) => tx.wait(1))
 
   let lotteryContractBalance = lotteryContract.address
   var balanceInWei = await ethers.provider.getBalance(lotteryContractBalance)
