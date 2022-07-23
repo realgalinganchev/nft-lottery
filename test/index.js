@@ -1,49 +1,72 @@
-const { expect, assert } = require('chai')
-const { ethers, upgrades } = require('hardhat')
+const { expect } = require('chai')
+const { ethers } = require('hardhat')
 
-describe('Contract Version 2 test', function () {
-  let oldContract, upgradedContract, owner, addr1
+describe('Proxy', async () => {
+  let owner
+  let proxy, logic
 
-  beforeEach(async function () {
-    ;[owner, addr1] = await ethers.getSigners(2)
-    const Lottery1 = await ethers.getContractFactory('Lottery1')
-    const Lottery2 = await ethers.getContractFactory('Lottery2')
+  beforeEach(async () => {
+    ;[owner] = await ethers.getSigners()
 
-    oldContract = await upgrades.deployProxy(Lottery1, [], {
-      initializer: 'initialize',
-      kind: 'uups',
-    })
-    await oldContract.deployed()
+    const Logic = await ethers.getContractFactory('Ticket')
+    logic = await Logic.deploy('Ticket', 'TKT')
+    await logic.deployed()
+    const Proxy = await ethers.getContractFactory('Proxy')
+    proxy = await Proxy.deploy()
+    await proxy.deployed()
 
-    upgradedContract = await upgrades.upgradeProxy(oldContract, Lottery2, {
-      call: { fn: 'reInitialize' },
-    })
+    await proxy.setImplementation(logic.address)
+
+    abi = [
+      'function getCurrentTokenId() public view returns (uint256)',
+      'function setCurrentTokenId(uint256 id) public returns (uint256)',
+      'function initLottery(uint256 startBlock, uint256 endBlock) public',
+      'function safeMint(string memory _tokenURI) public',
+      'function payWinner() public returns (address)',
+      'function sendEther(address payable _to, uint256 _amount) public payable',
+      'function getRandomInt(uint256 _endingValue) public view returns (uint256)',
+      'function _burn(uint256 tokenId) public',
+      'function _setTokenURI(uint256 _tokenId, string memory _tokenURI) public ',
+      'function tokenURI(uint256 _tokenId) public view returns (string memory)',
+      'function _beforeTokenTransfer(address from, address to,uint256 tokenId) public',
+      'function supportsInterface(bytes4 interfaceId) public view returns (bool)',
+    ]
   })
 
-  it('Old contract cannnot mint NFTs', async function () {
-    try {
-      oldContract.safeMint(owner.address, 'Test NFT')
-    } catch (error) {
-      assert(error.message === 'oldContract.safeMint is not a function')
-    }
-  })
-  it('New Contract Should return the old & new greeting and token name after deployment', async function () {
-    expect(await upgradedContract.name()).to.equal('Ticket')
+  it('points to an implementation contract', async () => {
+    expect(await proxy.callStatic.getImplementation()).to.eq(logic.address)
   })
 
-  it('Only Owner can start the lottery', async function () {
-    await expect(
-      upgradedContract.connect(addr1).initLottery(1, 2),
-    ).to.be.revertedWith('Ownable: caller is not the owner')
+  it('proxies calls to implementation contract', async () => {
+    const proxied = new ethers.Contract(proxy.address, abi, owner)
+    await proxied.setCurrentTokenId(5)
+    expect(await proxied.getCurrentTokenId()).to.eq(5)
   })
 
-  // it('Only Owner can start the lottery', async function () {
-  //   await upgradedContract.connect(owner).initLottery(0, 1)
-  //   await expect(upgradedContract.safeMint('Test NFT'))
-  //     .to.emit(upgradedContract, 'Transfer')
-  //     .withArgs(ethers.constants.AddressZero, owner.address, 0)
+  it('allows to change implementations', async () => {
+    const LogicV2 = await ethers.getContractFactory('TicketV2')
+    const logicv2 = await LogicV2.deploy('TicketV2', 'TKTV2')
+    await logicv2.deployed()
 
-  //   expect(await upgradedContract.balanceOf(owner.address)).to.equal(1)
-  //   expect(await upgradedContract.ownerOf(0)).to.equal(owner.address)
-  // })
+    await proxy.setImplementation(logicv2.address)
+
+    abi = [
+      'function doMagic(uint256 id) public pure returns (uint256)',
+      'function getCurrentTokenId() public view returns (uint256)',
+      'function setCurrentTokenId(uint256 id) public returns (uint256)',
+      'function initLottery(uint256 startBlock, uint256 endBlock) public',
+      'function safeMint(string memory _tokenURI) public',
+      'function payWinner() public returns (address)',
+      'function sendEther(address payable _to, uint256 _amount) public payable',
+      'function getRandomInt(uint256 _endingValue) public view returns (uint256)',
+      'function _burn(uint256 tokenId) public',
+      'function _setTokenURI(uint256 _tokenId, string memory _tokenURI) public ',
+      'function tokenURI(uint256 _tokenId) public view returns (string memory)',
+      'function _beforeTokenTransfer(address from, address to,uint256 tokenId) public',
+      'function supportsInterface(bytes4 interfaceId) public view returns (bool)',
+    ]
+
+    const proxied = new ethers.Contract(proxy.address, abi, owner)
+    expect(await proxied.doMagic(4)).to.eq(2)
+  })
 })

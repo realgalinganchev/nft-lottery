@@ -1,23 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.12;
 
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721URIStorageUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721EnumerableUpgradeable.sol";
-
-import "./Lottery1.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "hardhat/console.sol";
 
-contract Lottery2 is
-    Lottery1,
-    ERC721EnumerableUpgradeable,
-    ERC721URIStorageUpgradeable
-{
+contract Ticket is Ownable, ERC721Enumerable, ERC721URIStorage {
     uint256 private _tokenIdCounter;
     uint256 public currentLotteryId;
-    uint256 public numLotteries;
     mapping(uint256 => string) private _tokenURIs;
     struct LotteryStruct {
         uint256 lotteryId;
@@ -26,9 +18,17 @@ contract Lottery2 is
     }
     mapping(uint256 => LotteryStruct) public lotteries;
 
-    function reInitialize() public reinitializer(2) {
-        __ERC721_init("Ticket", "TKT");
-        __ERC721URIStorage_init();
+    constructor(string memory name, string memory symbol) ERC721(name, symbol) {
+        _tokenIdCounter = 0;
+    }
+
+    function getCurrentTokenId() public view returns (uint256) {
+        return currentLotteryId;
+    }
+
+    function setCurrentTokenId(uint256 id) public returns (uint256) {
+        currentLotteryId = id;
+        return currentLotteryId;
     }
 
     modifier isLotteryInitAndPlayable() {
@@ -113,7 +113,7 @@ contract Lottery2 is
 
     function _burn(uint256 tokenId)
         internal
-        override(ERC721Upgradeable, ERC721URIStorageUpgradeable)
+        override(ERC721, ERC721URIStorage)
     {
         super._burn(tokenId);
     }
@@ -134,7 +134,7 @@ contract Lottery2 is
         public
         view
         virtual
-        override(ERC721Upgradeable, ERC721URIStorageUpgradeable)
+        override(ERC721, ERC721URIStorage)
         returns (string memory)
     {
         require(
@@ -148,14 +148,14 @@ contract Lottery2 is
         address from,
         address to,
         uint256 tokenId
-    ) internal override(ERC721Upgradeable, ERC721EnumerableUpgradeable) {
+    ) internal override(ERC721, ERC721Enumerable) {
         super._beforeTokenTransfer(from, to, tokenId);
     }
 
     function supportsInterface(bytes4 interfaceId)
         public
         view
-        override(ERC721Upgradeable, ERC721EnumerableUpgradeable)
+        override(ERC721, ERC721Enumerable)
         returns (bool)
     {
         return super.supportsInterface(interfaceId);
