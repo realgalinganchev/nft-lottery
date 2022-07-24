@@ -3,19 +3,6 @@ const { ethers } = require('hardhat')
 const contract = require('../artifacts/contracts/Ticket.sol/Ticket.json')
 const contractInterface = contract.abi
 
-let provider = ethers.provider
-const tokenURI0 = 'https://opensea-creatures-api.herokuapp.com/api/creature/0'
-const walletOwner = new ethers.Wallet(
-  '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
-)
-walletOwner.provider = provider
-const signerOwner = walletOwner.connect(provider)
-const lotteryContract = new ethers.Contract(
-  '0x5FbDB2315678afecb367f032d93F642f64180aa3',
-  contractInterface,
-  signerOwner,
-)
-
 async function main() {
   const options = {
     gasPrice: ethers.getDefaultProvider().getGasPrice(),
@@ -25,6 +12,18 @@ async function main() {
   const options0 = {
     value: ethers.utils.parseEther('0'),
   }
+  let provider = ethers.provider
+  const tokenURI0 = 'https://opensea-creatures-api.herokuapp.com/api/creature/0'
+  const walletOwner = new ethers.Wallet(
+    '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
+  )
+  walletOwner.provider = provider
+  const signerOwner = walletOwner.connect(provider)
+  const ticketContract = new ethers.Contract(
+    '0x5FbDB2315678afecb367f032d93F642f64180aa3',
+    contractInterface,
+    signerOwner,
+  )
 
   ;[owner, player1, player2] = await ethers.getSigners()
 
@@ -41,21 +40,18 @@ async function main() {
       })
     })
   }
-  let lotteryContractBalance = lotteryContract.address
-  var balanceInWei = await ethers.provider.getBalance(lotteryContractBalance)
-  console.log(
-    'Balance in lottery contract: ' + ethers.utils.formatUnits(balanceInWei),
-  )
+  var balanceInWei = await ethers.provider.getBalance(ticketContract.address)
+  console.log('Balance in contract: ' + ethers.utils.formatUnits(balanceInWei))
 
-  // lotteryContract
+  // ticketContract
   //   .initLottery(4, 8)
   //   .then((tx) => tx.wait(1))
 
-  // lotteryContract
-  //   .connect(player2)
-  //   .safeMint(tokenURI0, options)
-  //   .then((tx) => tx.wait(1))
+  ticketContract
+    // .connect(player2)
+    .safeMint(tokenURI0, options)
+    .then((tx) => tx.wait(1))
 
-  lotteryContract.fallback(options0).then((tx) => tx.wait(1))
+  // ticketContract.fallback(options0).then((tx) => tx.wait(1))
 }
 main()

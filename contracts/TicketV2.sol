@@ -1,38 +1,32 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.12;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "hardhat/console.sol";
 
 contract TicketV2 is Ownable, ERC721Enumerable, ERC721URIStorage {
+    event LotteryStarted(
+        uint256 lotteryId,
+        uint256 startBlock,
+        uint256 endBlock
+    );
+
+    event WinnerAddress(address winnerAddress);
+
     uint256 private _tokenIdCounter;
     uint256 public currentLotteryId;
-    mapping(uint256 => string) private _tokenURIs;
     struct LotteryStruct {
         uint256 lotteryId;
         uint256 startBlock;
         uint256 endBlock;
     }
+    mapping(uint256 => string) private _tokenURIs;
     mapping(uint256 => LotteryStruct) public lotteries;
 
     constructor(string memory name, string memory symbol) ERC721(name, symbol) {
         _tokenIdCounter = 0;
-    }
-
-    function doMagic(uint256 id) public pure returns (uint256) {
-        return id / 2;
-    }
-
-    function getCurrentTokenId() public view returns (uint256) {
-        return currentLotteryId;
-    }
-
-    function setCurrentTokenId(uint256 id) public returns (uint256) {
-        currentLotteryId = id;
-        return currentLotteryId;
     }
 
     modifier isLotteryInitAndPlayable() {
@@ -52,15 +46,37 @@ contract TicketV2 is Ownable, ERC721Enumerable, ERC721URIStorage {
         console.log("----- receive:", msg.value);
     }
 
+    function testNewImplementation() public pure returns (string memory test) {
+        test = "it works";
+    }
+
     function initLottery(uint256 startBlock, uint256 endBlock)
         external
         onlyOwner
     {
+        require(
+            startBlock >= block.number,
+            "You cannot start lottery from past blocks"
+        );
+
         lotteries[currentLotteryId] = LotteryStruct({
             lotteryId: currentLotteryId,
             startBlock: startBlock,
             endBlock: endBlock
         });
+        emit LotteryStarted(currentLotteryId, startBlock, endBlock);
+    }
+
+    function resetLottery() public onlyOwner {
+        lotteries[currentLotteryId] = LotteryStruct({
+            lotteryId: currentLotteryId + 1,
+            startBlock: 0,
+            endBlock: 0
+        });
+    }
+
+    function getCurrentBlockNumber() public view returns (uint256) {
+        return block.number;
     }
 
     function safeMint(string memory _tokenURI)
@@ -77,27 +93,24 @@ contract TicketV2 is Ownable, ERC721Enumerable, ERC721URIStorage {
 
         if (
             lotteries[currentLotteryId].endBlock == block.number ||
-            lotteries[currentLotteryId].endBlock - 1 == block.number
+            lotteries[currentLotteryId].endBlock == block.number + 1
         ) {
-            payWinner();
+            payWinner(totalSupply(), ownerOf(getRandomInt(totalSupply())));
         }
     }
 
-    function payWinner() private returns (address) {
-        uint256 totalSupply = totalSupply();
-        address winnerAddr = ownerOf(getRandomInt(totalSupply));
-
-        if (lotteries[currentLotteryId].endBlock - 1 == block.number) {
+    function payWinner(uint256 _totalSupply, address winnerAddr) public {
+        if (lotteries[currentLotteryId].endBlock == block.number + 1) {
             sendEther(payable(winnerAddr), address(this).balance / 2);
         } else {
             sendEther(payable(winnerAddr), address(this).balance);
             currentLotteryId = currentLotteryId + 1;
             uint256 i = 0;
-            for (i; i < totalSupply; i++) {
+            for (i; i < _totalSupply; i++) {
                 _burn(i);
             }
         }
-        return winnerAddr;
+        emit WinnerAddress(winnerAddr);
     }
 
     function sendEther(address payable _to, uint256 _amount) public payable {
@@ -120,18 +133,6 @@ contract TicketV2 is Ownable, ERC721Enumerable, ERC721URIStorage {
         override(ERC721, ERC721URIStorage)
     {
         super._burn(tokenId);
-    }
-
-    function _setTokenURI(uint256 _tokenId, string memory _tokenURI)
-        internal
-        virtual
-        override
-    {
-        require(
-            _exists(_tokenId),
-            "ERC721Metadata: URI set of nonexistent token"
-        );
-        _tokenURIs[_tokenId] = _tokenURI;
     }
 
     function tokenURI(uint256 _tokenId)
