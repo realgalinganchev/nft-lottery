@@ -54,6 +54,10 @@ contract Ticket is Ownable, ERC721Enumerable, ERC721URIStorage {
             startBlock >= block.number,
             "You cannot start lottery from past blocks"
         );
+        require(
+            endBlock >= startBlock,
+            "End time of lottery should be after start time"
+        );
 
         lotteries[currentLotteryId] = LotteryStruct({
             lotteryId: currentLotteryId,
@@ -82,7 +86,8 @@ contract Ticket is Ownable, ERC721Enumerable, ERC721URIStorage {
         isLotteryInitAndPlayable
     {
         require(msg.value == 1 ether, "price is 1 eth");
-        sendEther(payable(address(this)), msg.value);
+        (bool sent, ) = payable(address(this)).call{value: msg.value}("");
+        require(sent, "Failed to send Ether");
         _safeMint(msg.sender, _tokenIdCounter);
         _setTokenURI(_tokenIdCounter, _tokenURI);
         _tokenIdCounter++;
@@ -95,11 +100,17 @@ contract Ticket is Ownable, ERC721Enumerable, ERC721URIStorage {
         }
     }
 
-    function payWinner(uint256 _totalSupply, address winnerAddr) public {
+    function payWinner(uint256 _totalSupply, address winnerAddr) private {
         if (lotteries[currentLotteryId].endBlock == block.number + 1) {
-            sendEther(payable(winnerAddr), address(this).balance / 2);
+            (bool sent, ) = payable(winnerAddr).call{
+                value: address(this).balance / 2
+            }("");
+            require(sent, "Failed to send Ether");
         } else {
-            sendEther(payable(winnerAddr), address(this).balance);
+            (bool sent, ) = payable(winnerAddr).call{
+                value: address(this).balance
+            }("");
+            require(sent, "Failed to send Ether");
             currentLotteryId = currentLotteryId + 1;
             uint256 i = 0;
             for (i; i < _totalSupply; i++) {
@@ -107,11 +118,6 @@ contract Ticket is Ownable, ERC721Enumerable, ERC721URIStorage {
             }
         }
         emit WinnerAddress(winnerAddr);
-    }
-
-    function sendEther(address payable _to, uint256 _amount) public payable {
-        (bool sent, ) = _to.call{value: _amount}("");
-        require(sent, "Failed to send Ether");
     }
 
     function getRandomInt(uint256 _endingValue) private view returns (uint256) {

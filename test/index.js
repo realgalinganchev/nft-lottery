@@ -1,4 +1,4 @@
-const { expect, assert } = require('chai')
+const { expect } = require('chai')
 const { ethers } = require('hardhat')
 const { NonceManager } = require('@ethersproject/experimental')
 const proxyJSON = require('../artifacts/contracts/Proxy.sol/Proxy.json')
@@ -37,7 +37,7 @@ describe('Proxy', async () => {
     let bytes32Salt = ethers.utils.formatBytes32String(salt)
     const computedAddress = await factory.getAddress(proxyBytecode, bytes32Salt)
     await factory.deploy(proxyBytecode, bytes32Salt).then((tx) => tx.wait(1))
-    proxy = await hre.ethers.getContractAt('Proxy', computedAddress)
+    proxy = await ethers.getContractAt('Proxy', computedAddress)
 
     const Ticket = await ethers.getContractFactory('Ticket')
     ticket = await Ticket.deploy('Ticket', 'TKT')

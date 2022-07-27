@@ -1,30 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.12;
 
-library StorageSlot {
-    function getAddressAt(bytes32 slot) internal view returns (address a) {
-        assembly {
-            a := sload(slot)
-        }
-    }
-
-    function setAddressAt(bytes32 slot, address address_) internal {
-        assembly {
-            sstore(slot, address_)
-        }
-    }
-}
+import "./Storage.sol";
 
 contract Proxy {
     bytes32 private constant _IMPL_SLOT =
         bytes32(uint256(keccak256("eip1967.proxy.implementation")) - 1);
 
     function setImplementation(address implementation_) public {
-        StorageSlot.setAddressAt(_IMPL_SLOT, implementation_);
+        Storage.setAddressAt(_IMPL_SLOT, implementation_);
     }
 
     function getImplementation() public view returns (address) {
-        return StorageSlot.getAddressAt(_IMPL_SLOT);
+        return Storage.getAddressAt(_IMPL_SLOT);
     }
 
     function _delegate(address impl) internal virtual {
@@ -48,6 +36,6 @@ contract Proxy {
     }
 
     fallback() external {
-        _delegate(StorageSlot.getAddressAt(_IMPL_SLOT));
+        _delegate(Storage.getAddressAt(_IMPL_SLOT));
     }
 }

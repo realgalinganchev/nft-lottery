@@ -4,7 +4,6 @@ pragma solidity ^0.8.12;
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "hardhat/console.sol";
 
 contract TicketV2 is Ownable, ERC721Enumerable, ERC721URIStorage {
     event LotteryStarted(
@@ -42,9 +41,7 @@ contract TicketV2 is Ownable, ERC721Enumerable, ERC721URIStorage {
         _;
     }
 
-    receive() external payable {
-        console.log("----- receive:", msg.value);
-    }
+    receive() external payable {}
 
     function testNewImplementation() public pure returns (string memory test) {
         test = "it works";
